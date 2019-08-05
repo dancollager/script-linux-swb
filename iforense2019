@@ -1,0 +1,51 @@
+#!/bin/sh
+
+# Forense 2019
+# to ing.Siler Amador
+# by Felipe-Leidy-Daniel
+
+# Part 1. Set disk/device in read mode and mount it in /mnt
+[ $# -eq 1 ] || exit
+# get input device
+[ ! -z "$1" ] || exit
+# assign to bdev
+bdev="$1"
+# check device how block device
+[ -b "/dev/$bdev" ] || exit
+# Check variable is not null
+[ ! -z ${bdev##loop*} ] || exit
+# set disk/device attributes
+blockdev --setro "/dev/$bdev" || logger "forensics: blockdev --setro /dev/$bdev failed!"
+# mount device in /mnt/device
+# check directory where mount
+
+mkdir "/mnt/$bdev"
+
+# get disk image with dd
+TIME=`date +%s`
+dd if="/dev/$bdev" of="/home/swb/images/$bdev-${TIME}.dd" conv=sync,noerror bs=1M || logger "forensics: error with dd"
+# get hash of image
+md5sum /home/swb/images/"$bdev-${TIME}.dd" > "/home/swb/hash/hash-md5sum-$bdev-${TIME}.txt" || logger "forensics: error with md5sum"
+# copy image for mount
+cp "/home/swb/images/$bdev-${TIME}.dd" "/home/swb/images/copy-$bdev-${TIME}.dd" || logger "forensics: no file in copy proccess"
+# get hash of copy images
+md5sum /home/swb/images/"copy-$bdev-${TIME}.dd" >>  "/home/swb/hash/hash-md5sum-$bdev-${TIME}.txt" || logger "forensics: error with hash in copy image"
+# mount image copy for forensic activities
+mount -o ro,loop,noexec /home/swb/images/"copy-$bdev-${TIME}.dd" "/mnt/$bdev" || logger "forensics: error mounting /dev/$bdev"
+
+# Part 2. Mark a parent block device as read-only
+bdev=$(echo "$bdev" | sed 's/\//!/g')
+# Directory of devices in filesystem
+syspath=$(echo /sys/block/*/"$bdev")
+# verify path
+[ "$syspath" = "/sys/block/*/$bdev" ] && exit
+# directory where is device
+dir=${syspath%/*}
+parent=${dir##*/}
+# filter name of device
+parent=$(echo "$parent" | sed 's/!/\//g')
+# check parent device how block device 
+[ -b "/dev/$parent" ] || exit
+blockdev --setro "/dev/$parent" || logger "forensics: blockdev --setro /dev/$parent failed!"
+
+logger "forensics: finish"

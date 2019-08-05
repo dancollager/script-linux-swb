@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# iforense 2019
+# delete directories and umount images
+
+# umount
+[ $# -eq 1 ] || exit
+[ ! -z "$1" ] || exit
+bdev="$1"
+[ -b "/dev/$bdev" ] || exit
+[ ! -z ${bdev##loop*} ] || exit
+umount /mnt/"$bdev"
+
+# delete directory
+#[-d "/mnt/$bdev"] rm /mnt/"$bdev" || logger "no exists file"
