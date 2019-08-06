@@ -1,0 +1,32 @@
+#!/bin/sh
+# Part 1. Set disk/device in read mode and mount it in /mnt
+[ $# -eq 1 ] || exit
+# get input device
+[ ! -z "$1" ] || exit
+# assign to bdev
+bdev="$1"
+# check device how block device
+[ -b "/dev/$bdev" ] || exit
+# Check variable is not null
+[ ! -z ${bdev##loop*} ] || exit
+# set disk/device attributes
+blockdev --setro "/dev/$bdev" || logger "forensics: blockdev --setro /dev/$bdev failed!"
+# mount device in /mnt/device
+# check directory where mount
+
+mkdir "/mnt/$bdev"
+# Part 2. Mark a parent block device as read-only
+bdev=$(echo "$bdev" | sed 's/\//!/g')
+# Directory of devices in filesystem
+syspath=$(echo /sys/block/*/"$bdev")
+# verify path
+[ "$syspath" = "/sys/block/*/$bdev" ] && exit
+# directory where is device
+dir=${syspath%/*}
+parent=${dir##*/}
+# filter name of device
+parent=$(echo "$parent" | sed 's/!/\//g')
+# check parent device how block device 
+[ -b "/dev/$parent" ] || exit
+blockdev --setro "/dev/$parent" || logger "forensics: blockdev --setro /dev/$parent failed!"
+
